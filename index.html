@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no"/>
+<title>For Jenisha 🌸</title>
+<link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@600;700&family=Caveat:wght@400;600&display=swap" rel="stylesheet"/>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#0d050a}
+
+/* ── Tap-to-start overlay ── */
+#start{
+  position:fixed;inset:0;z-index:80;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;
+  background:#0d050a;
+  transition:opacity 1.4s ease;
+  cursor:pointer;
+}
+#start.gone{opacity:0;pointer-events:none}
+.s-name{
+  font-family:'Dancing Script',cursive;
+  font-size:clamp(3rem,13vw,6.5rem);
+  color:#ffb7c5;
+  text-shadow:0 0 50px rgba(255,150,200,.5),0 0 100px rgba(255,100,160,.2);
+  animation:glow 2.8s ease-in-out infinite;
+}
+.s-hint{
+  font-family:'Caveat',cursive;
+  font-size:clamp(1rem,3.5vw,1.3rem);
+  letter-spacing:.18em;
+  color:rgba(255,183,213,.45);
+  animation:blink 2s ease-in-out infinite;
+}
+@keyframes glow{0%,100%{text-shadow:0 0 40px rgba(255,150,200,.4)}50%{text-shadow:0 0 70px rgba(255,150,200,.7),0 0 120px rgba(255,100,160,.3)}}
+@keyframes blink{0%,100%{opacity:.4}50%{opacity:1}}
+
+/* ── Message card ── */
+#card{
+  position:fixed;
+  left:50%;bottom:-240px;
+  transform:translateX(-50%);
+  width:min(360px,90vw);
+  background:rgba(255,251,252,.97);
+  border-radius:18px;
+  padding:28px 30px 26px;
+  box-shadow:0 12px 60px rgba(0,0,0,.35),0 0 0 1px rgba(255,180,200,.25),inset 0 1px 0 rgba(255,255,255,.8);
+  z-index:60;
+  transition:bottom 1.3s cubic-bezier(.34,1.4,.64,1);
+  text-align:left;
+}
+#card.show{bottom:clamp(20px,4vh,55px)}
+.c-to{
+  font-family:'Caveat',cursive;
+  font-size:.85rem;
+  letter-spacing:.15em;
+  color:rgba(180,60,90,.5);
+  text-transform:uppercase;
+  margin-bottom:12px;
+}
+.c-msg{
+  font-family:'Caveat',cursive;
+  font-size:clamp(1.25rem,3.5vw,1.5rem);
+  line-height:1.75;
+  color:#3a1020;
+  min-height:4.5rem;
+  white-space:pre-wrap;
+}
+.c-from{
+  margin-top:18px;
+  font-family:'Dancing Script',cursive;
+  font-size:1.5rem;
+  color:#c2185b;
+  text-align:right;
+}
+.c-date{
+  font-size:.7rem;
+  color:rgba(120,40,60,.35);
+  text-align:right;
+  margin-top:3px;
+  letter-spacing:.06em;
+}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<div id="start" onclick="begin()">
+  <div class="s-name">For Jenisha</div>
+  <div class="s-hint">tap to open</div>
+</div>
+
+<div id="card" id="card">
+  <div class="c-to">for jenisha 🌸</div>
+  <div class="c-msg" id="cmsg"></div>
+  <div class="c-from">— Dipesh</div>
+  <div class="c-date">April 21 · 2026</div>
+</div>
+
+<script>
+// ── Setup ──────────────────────────────────────────────────────────────────
+const cv = document.getElementById('c');
+const cx = cv.getContext('2d');
+let W = cv.width = window.innerWidth;
+let H = cv.height = window.innerHeight;
+
+// Heart center & scale
+let HCX, HCY, S;
+function recalc() {
+  HCX = W / 2;
+  HCY = H * 0.41;
+  S   = Math.min(W * 0.022, H * 0.018);
+}
+recalc();
+
+// Heart parametric: standard math coords (y up), we negate y for canvas
+function heartPt(t) {
+  const x =  16 * Math.pow(Math.sin(t), 3);
+  const y = -(13 * Math.cos(t) - 5 * Math.cos(2*t) - 2 * Math.cos(3*t) - Math.cos(4*t));
+  return { x: HCX + x * S, y: HCY + y * S };
+}
+
+// ── Twinkling starfield ───────────────────────────────────────────────────
+const STARS = Array.from({length: 220}, () => ({
+  x: Math.random() * 1, y: Math.random() * 1, // normalized, resolved each frame
+  r: .3 + Math.random() * 1.4,
+  base: .1 + Math.random() * .55,
+  tp: Math.random() * Math.PI * 2,
+  ts: .006 + Math.random() * .014,
+}));
+function drawStars() {
+  STARS.forEach(s => {
+    s.tp += s.ts;
+    const a = s.base + Math.sin(s.tp) * .22;
+    cx.beginPath();
+    cx.arc(s.x * W, s.y * H, s.r, 0, Math.PI * 2);
+    cx.fillStyle = `rgba(255,220,235,${Math.max(0,a)})`;
+    cx.fill();
+  });
+}
+// Assign normalized positions once
+STARS.forEach(s => { s.x = Math.random(); s.y = Math.random(); });
+
+// ── Branch system ────────────────────────────────────────────────────────
+const N = 28;
+let BRANCHES = [];
+function buildBranches() {
+  BRANCHES = [];
+  const tipY  = heartPt(Math.PI).y;  // bottom tip of heart
+  const baseY = H * 0.855;            // trunk base
+
+  for (let i = 0; i < N; i++) {
+    const t   = (i / N) * Math.PI * 2;
+    const tip = heartPt(t);
+
+    // Branch starts somewhere on trunk, biased toward where it needs to go
+    const vertFrac = Math.max(0, Math.min(.72, (tip.y - tipY) / (baseY - tipY)));
+    const bx = HCX + (tip.x - HCX) * .06;
+    const by = tipY + vertFrac * (baseY - tipY);
+
+    // Control point: curves naturally toward tip
+    const ctrlX = bx + (tip.x - bx) * .42 + (Math.random() - .5) * S * 4;
+    const ctrlY = by + (tip.y - by) * .36 - S * 6;
+
+    // Thickness: lower branches are thicker
+    const dy = tip.y - HCY;           // positive if below center
+    const maxDy = 17 * S;             // bottom tip offset
+    const thick = 1.2 + Math.max(0, dy / maxDy) * 2;
+
+    BRANCHES.push({
+      base: { x: bx, y: by },
+      ctrl: { x: ctrlX, y: ctrlY },
+      tip,
+      progress: 0,
+      delay: i * .038,         // stagger: first branch starts immediately
+      width: thick,
+    });
+  }
+}
+buildBranches();
+
+// ── Bezier helpers ────────────────────────────────────────────────────────
+function bPt(p0, p1, p2, t) {
+  const u = 1 - t;
+  return {
+    x: u*u*p0.x + 2*u*t*p1.x + t*t*p2.x,
+    y: u*u*p0.y + 2*u*t*p1.y + t*t*p2.y,
+  };
+}
+
+function drawBranch(b, prog) {
+  if (prog <= 0) return;
+  const steps = 24;
+  cx.beginPath();
+  cx.moveTo(b.base.x, b.base.y);
+  const end = Math.min(1, prog);
+  for (let i = 1; i <= steps; i++) {
+    const f = i / steps;
+    if (f > end + .001) break;
+    const p = bPt(b.base, b.ctrl, b.tip, Math.min(end, f));
+    cx.lineTo(p.x, p.y);
+  }
+  cx.strokeStyle = 'rgba(90,52,22,.82)';
+  cx.lineWidth = b.width;
+  cx.lineCap = 'round';
+  cx.lineJoin = 'round';
+  cx.stroke();
+}
+
+function drawTrunk(prog) {
+  if (prog <= 0) return;
+  const tipY  = heartPt(Math.PI).y;
+  const baseY = H * 0.855;
+  const steps = 28;
+
+  for (let i = 0; i < steps; i++) {
+    const f0 = i / steps;
+    const f1 = (i + 1) / steps;
+    if (f0 > prog) break;
+    const y0 = baseY - (baseY - tipY) * f0;
+    const y1 = baseY - (baseY - tipY) * Math.min(prog, f1);
+    const w  = 11 - f0 * 7.5;        // taper from 11px to 3.5px
+    cx.beginPath();
+    cx.moveTo(HCX, y0);
+    cx.lineTo(HCX, y1);
+    cx.strokeStyle = `rgba(70,38,14,.88)`;
+    cx.lineWidth = Math.max(1.5, w);
+    cx.lineCap = 'round';
+    cx.stroke();
+  }
+}
+
+// ── Blossom drawing ───────────────────────────────────────────────────────
+const PETAL_COLS = ['#ffb7c5','#ffc8d4','#ffdde8','#ffadc0','#ffe0ea'];
+function drawBlossom(x, y, size, alpha) {
+  if (alpha <= 0 || size <= 0) return;
+  cx.save();
+  cx.globalAlpha = Math.min(1, alpha);
+  for (let i = 0; i < 5; i++) {
+    const a  = (i / 5) * Math.PI * 2 - Math.PI / 10;
+    const px = x + Math.cos(a) * size * .62;
+    const py = y + Math.sin(a) * size * .62;
+    cx.beginPath();
+    cx.arc(px, py, size * .54, 0, Math.PI * 2);
+    cx.fillStyle = PETAL_COLS[i];
+    cx.fill();
+  }
+  cx.beginPath();
+  cx.arc(x, y, size * .3, 0, Math.PI * 2);
+  cx.fillStyle = '#fffde7';
+  cx.fill();
+  cx.restore();
+}
+
+// ── Petal particles ───────────────────────────────────────────────────────
+const PETALS = [];
+class FallingPetal {
+  constructor(init) {
+    this.x  = Math.random() * W * 1.3 - W * .15;
+    this.y  = init ? Math.random() * H : -16;
+    this.vx = -.4 + Math.random() * .9;
+    this.vy = .5 + Math.random() * 1.1;
+    this.rot = Math.random() * Math.PI * 2;
+    this.rs  = (Math.random() - .5) * .045;
+    this.sz  = 3.5 + Math.random() * 5;
+    this.a   = .45 + Math.random() * .45;
+    this.col = PETAL_COLS[Math.floor(Math.random() * PETAL_COLS.length)];
+  }
+  tick() {
+    this.x += this.vx;
+    this.y += this.vy;
+    this.rot += this.rs;
+    this.vx += (Math.random() - .5) * .04;
+    if (this.y > H + 20) {
+      this.x  = Math.random() * W * 1.3 - W * .15;
+      this.y  = -16;
+      this.vx = -.4 + Math.random() * .9;
+      this.vy = .5 + Math.random() * 1.1;
+    }
+  }
+  draw() {
+    cx.save();
+    cx.translate(this.x, this.y);
+    cx.rotate(this.rot);
+    cx.globalAlpha = this.a;
+    cx.beginPath();
+    cx.ellipse(0, 0, this.sz, this.sz * .55, 0, 0, Math.PI * 2);
+    cx.fillStyle = this.col;
+    cx.fill();
+    cx.restore();
+  }
+}
+
+// ── Story phases ──────────────────────────────────────────────────────────
+// 0 = idle (starfield only)
+// 1 = trunk growing
+// 2 = branches spreading
+// 3 = blossoms blooming
+// 4 = petals drifting + card
+let phase = 0;
+let trunkProg = 0;
+let elapsed = 0;
+let prevT = 0;
+let cardDone = false;
+
+const MSG = "Made this for you today.\nCouldn't fit all the reasons\nonto one tree.\n\nSo I just used blossoms.";
+
+function typeMsg(el, text, speed) {
+  el.textContent = '';
+  let i = 0;
+  const iv = setInterval(() => {
+    if (i >= text.length) { clearInterval(iv); return; }
+    el.textContent += text[i++];
+  }, speed);
+}
+
+function showCard() {
+  const card = document.getElementById('card');
+  card.classList.add('show');
+  setTimeout(() => typeMsg(document.getElementById('cmsg'), MSG, 42), 700);
+}
+
+function begin() {
+  document.getElementById('start').classList.add('gone');
+  setTimeout(() => {
+    phase = 1;
+    prevT = performance.now();
+    requestAnimationFrame(loop);
+  }, 1400);
+}
+
+// ── Main render loop ──────────────────────────────────────────────────────
+function loop(ts) {
+  if (!prevT) prevT = ts;
+  const dt  = Math.min(.08, (ts - prevT) / 1000);
+  prevT = ts;
+  elapsed += dt;
+
+  // Clear + background
+  cx.clearRect(0, 0, W, H);
+  const bg = cx.createRadialGradient(HCX, HCY, 0, HCX, HCY, Math.max(W, H) * .75);
+  bg.addColorStop(0, '#18060f');
+  bg.addColorStop(1, '#080208');
+  cx.fillStyle = bg;
+  cx.fillRect(0, 0, W, H);
+
+  // Ambient glow once blossoms start
+  if (phase >= 3) {
+    const glow = cx.createRadialGradient(HCX, HCY - S * 2, 0, HCX, HCY, S * 22);
+    glow.addColorStop(0, 'rgba(255,160,200,.07)');
+    glow.addColorStop(1, 'rgba(0,0,0,0)');
+    cx.fillStyle = glow;
+    cx.fillRect(0, 0, W, H);
+  }
+
+  drawStars();
+
+  // ── Phase 1: Trunk ──
+  if (phase === 1) {
+    trunkProg = Math.min(1, elapsed / 1.3);
+    drawTrunk(trunkProg);
+    if (trunkProg >= 1) { phase = 2; elapsed = 0; }
+  }
+
+  // ── Phase 2+: Trunk always at full ──
+  if (phase >= 2) drawTrunk(1);
+
+  // ── Phase 2: Branches spread ──
+  if (phase >= 2) {
+    let allDone = true;
+    BRANCHES.forEach(b => {
+      if (phase === 2) {
+        b.progress = Math.min(1, Math.max(0, (elapsed - b.delay) / .65));
+      }
+      if (b.progress < 1) allDone = false;
+      drawBranch(b, b.progress);
+    });
+    if (phase === 2 && allDone) {
+      phase = 3;
+      elapsed = 0;
+      // Spawn gentle petals early
+      for (let i = 0; i < 55; i++) PETALS.push(new FallingPetal(false));
+    }
+  }
+
+  // ── Phase 3: Blossoms bloom ──
+  if (phase >= 3) {
+    BRANCHES.forEach((b, i) => {
+      const bp = Math.min(1, Math.max(0, (elapsed - i * .055) / .45));
+      drawBlossom(b.tip.x, b.tip.y, S * 1.25 * bp, bp);
+    });
+
+    if (phase === 3) {
+      const lastT = BRANCHES.length * .055 + .45;
+      if (elapsed > lastT + .9 && !cardDone) {
+        cardDone = true;
+        phase = 4;
+        elapsed = 0;
+        setTimeout(showCard, 500);
+      }
+    }
+  }
+
+  // ── Phase 4: Blossoms stable + falling petals ──
+  if (phase === 4) {
+    BRANCHES.forEach(b => drawBlossom(b.tip.x, b.tip.y, S * 1.25, 1));
+    PETALS.forEach(p => { p.tick(); p.draw(); });
+  }
+
+  requestAnimationFrame(loop);
+}
+
+// ── Idle starfield before tap ─────────────────────────────────────────────
+function idleLoop(ts) {
+  if (phase > 0) return; // hand off to main loop
+  cx.clearRect(0, 0, W, H);
+  const bg = cx.createRadialGradient(HCX, HCY, 0, HCX, HCY, Math.max(W, H) * .75);
+  bg.addColorStop(0, '#18060f');
+  bg.addColorStop(1, '#080208');
+  cx.fillStyle = bg;
+  cx.fillRect(0, 0, W, H);
+  drawStars();
+  requestAnimationFrame(idleLoop);
+}
+requestAnimationFrame(idleLoop);
+
+window.addEventListener('resize', () => {
+  W = cv.width = window.innerWidth;
+  H = cv.height = window.innerHeight;
+  recalc();
+  buildBranches();
+});
+</script>
+</body>
+</html>
